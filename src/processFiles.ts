@@ -1,13 +1,35 @@
 import { walkDir } from "./walkDir";
 
+type MediaMetadataPair = {
+  fileName: string;
+  metadataPath?: string;
+  mediaPath: string;
+};
+
 export async function processFiles(dir: string) {
-  let jsonCount = 0;
-  let notEndingWithJsonCount = 0;
+  const metadataByFileName = new Map<string, string>();
+  const mediaByFileName = new Map<string, string>();
   for await (const filePath of walkDir(dir)) {
-    if (filePath.includes("json")) jsonCount += 1;
-    if (filePath.includes("json") && !filePath.endsWith(".json"))
-      notEndingWithJsonCount += 1;
+    const fileName = filePath.split("/").pop()?.replace(".json", "");
+    if (!fileName) continue;
+    if (filePath.endsWith(".json")) {
+      metadataByFileName.set(fileName, filePath);
+    } else {
+      mediaByFileName.set(fileName, filePath);
+    }
   }
-  console.log("JSON count:", jsonCount);
-  console.log("Not ending with JSON count:", notEndingWithJsonCount);
+  const pairs: MediaMetadataPair[] = [];
+  const noMetadataMedia: { fileName: string; mediaPath: string }[] = [];
+  for (const [fileName, mediaPath] of mediaByFileName) {
+    const metadataPath = metadataByFileName.get(fileName);
+    if (!metadataPath) {
+      noMetadataMedia.push({ fileName, mediaPath });
+    }
+    pairs.push({ fileName, metadataPath, mediaPath });
+  }
+
+  console.log("Pairs", pairs.length);
+  console.log("No metadata", noMetadataMedia.length);
+
+  return { pairs, noMetadataMedia };
 }
